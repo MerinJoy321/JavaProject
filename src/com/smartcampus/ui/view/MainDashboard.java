@@ -2,7 +2,6 @@ package com.smartcampus.ui.view;
 
 import com.smartcampus.data.CampusDataService;
 import com.smartcampus.data.model.Building;
-import com.smartcampus.data.model.User;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -19,15 +18,13 @@ public class MainDashboard extends BorderPane {
 
     private final MapView mapView;
     private final List<Building> buildings;
-    private final User loggedInUser;
 
-    public MainDashboard(User loggedInUser) {
-        this.loggedInUser = loggedInUser;
+    public MainDashboard() {
         this.buildings = CampusDataService.getCampusBuildings();
         this.mapView = new MapView();
 
         // --- Top Header ---
-        Label title = new Label("Smart Campus Navigation - Welcome " + loggedInUser.getUsername() + " (" + loggedInUser.getRole() + ")");
+        Label title = new Label("Smart Campus Navigation");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
         title.setPadding(new Insets(10));
         this.setTop(title);
@@ -39,17 +36,6 @@ public class MainDashboard extends BorderPane {
 
         // --- Left Control Panel (Building Selector) ---
         setupControlPanel();
-
-        // Role-based content example: show different buildings or controls based on role
-        if (loggedInUser.getRole() == User.Role.ADMIN) {
-            // Admin can see all buildings
-        } else if (loggedInUser.getRole() == User.Role.FACULTY) {
-            // Faculty can see only some buildings (example)
-            // Filter buildings list or disable some UI elements
-        } else if (loggedInUser.getRole() == User.Role.STUDENT) {
-            // Students have limited access
-            // Filter buildings list or disable some UI elements
-        }
 
         // Initial render
         mapView.renderBuilding(null);
