@@ -1,0 +1,7 @@
+- [ ] Add database connectivity to the project
+  - [ ] Create infrastructure/persistence/config/DatabaseConfig.java for H2 connection
+  - [ ] Update data models (Building, Floor, Destination) to include database IDs
+  - [ ] Create DAO interfaces and implementations for CRUD operations
+  - [ ] Add SQL scripts for schema creation and initial data
+  - [ ] Update CampusDataService.java to use database instead of mock data
+  - [ ] Test database connectivity and data loading

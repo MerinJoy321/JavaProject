@@ -1,33 +1,109 @@
 package com.smartcampus.ui.view;
 
+
 import com.smartcampus.data.model.Building;
 import com.smartcampus.data.model.Floor;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Label;
-import javafx.scene.layout.Pane;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.transform.Scale;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+import javafx.application.Platform;
 
-public class CampusMap extends Pane {
+public class CampusMap extends ScrollPane {
 
+    private Group group;
     private Canvas canvas;
     private GraphicsContext gc;
+    private Scale scale;
+    private double scaleValue = 1.0;
+    private double lastMouseX, lastMouseY;
+    private Building currentBuilding;
+    private Floor currentFloor;
+    private double userX = 400, userY = 300; // Initial user position
+    private Timeline userMovementTimeline;
 
     public CampusMap() {
         this.setPrefSize(800, 600);
         this.setStyle("-fx-background-color: #e8e8e8;");
 
+        group = new Group();
         canvas = new Canvas(800, 600);
         gc = canvas.getGraphicsContext2D();
 
-        // Add a clip to ensure drawings stay within the border
-        Rectangle clip = new Rectangle(800, 600);
-        this.setClip(clip);
+        scale = new Scale(scaleValue, scaleValue);
+        canvas.getTransforms().add(scale);
 
-        this.getChildren().add(canvas);
+        group.getChildren().add(canvas);
+        this.setContent(group);
+
+        // Mouse events for panning
+        this.setOnMousePressed(e -> {
+            lastMouseX = e.getX();
+            lastMouseY = e.getY();
+        });
+
+        this.setOnMouseDragged(e -> {
+            double deltaX = e.getX() - lastMouseX;
+            double deltaY = e.getY() - lastMouseY;
+            this.setHvalue(this.getHvalue() - deltaX / this.getWidth());
+            this.setVvalue(this.getVvalue() - deltaY / this.getHeight());
+            lastMouseX = e.getX();
+            lastMouseY = e.getY();
+        });
+
+        // Zoom with mouse wheel
+        this.setOnScroll(e -> {
+            double zoomFactor = 1.1;
+            if (e.getDeltaY() < 0) {
+                zoomFactor = 1 / zoomFactor;
+            }
+            scaleValue *= zoomFactor;
+            scale.setX(scaleValue);
+            scale.setY(scaleValue);
+
+            // Adjust scroll to zoom towards mouse
+            double mouseX = e.getX();
+            double mouseY = e.getY();
+            double newH = (this.getHvalue() * this.getWidth() + mouseX) * zoomFactor - mouseX;
+            double newV = (this.getVvalue() * this.getHeight() + mouseY) * zoomFactor - mouseY;
+            this.setHvalue(newH / this.getWidth());
+            this.setVvalue(newV / this.getHeight());
+        });
+
+        // Keyboard navigation for floors
+        this.setOnKeyPressed(e -> {
+            if (currentBuilding == null) return;
+            int floorIndex = currentBuilding.getFloors().indexOf(currentFloor);
+            switch (e.getCode()) {
+                case UP:
+                case RIGHT:
+                    if (floorIndex < currentBuilding.getFloors().size() - 1) {
+                        currentFloor = currentBuilding.getFloors().get(floorIndex + 1);
+                        renderFloor(currentFloor);
+                    }
+                    break;
+                case DOWN:
+                case LEFT:
+                    if (floorIndex > 0) {
+                        currentFloor = currentBuilding.getFloors().get(floorIndex - 1);
+                        renderFloor(currentFloor);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        // Request focus to receive key events
+        this.setFocusTraversable(true);
     }
 
     public void renderCampus(Building building) {
@@ -41,8 +117,19 @@ public class CampusMap extends Pane {
             return;
         }
 
+        currentBuilding = building;
+        currentFloor = building.getFloors().isEmpty() ? null : building.getFloors().get(0);
+
         // Draw the selected building with a transparent fill
         drawBuilding(building);
+
+        // Draw user avatar
+        drawUser();
+
+        // Draw current floor if selected
+        if (currentFloor != null) {
+            renderFloor(currentFloor);
+        }
     }
 
     private void drawBuilding(Building building) {
@@ -64,11 +151,6 @@ public class CampusMap extends Pane {
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 28));
         gc.setFill(Color.BLACK);
         gc.fillText(building.getName(), buildingX + 20, buildingY + 40);
-
-        // Render the first floor by default
-        if (!building.getFloors().isEmpty()) {
-            renderFloor(building.getFloors().get(0));
-        }
     }
 
     public void renderFloor(Floor floor) {
@@ -76,23 +158,95 @@ public class CampusMap extends Pane {
             return;
         }
 
-        // Draw a few sample rooms
-        drawRoom("Room 101", 80, 80, 150, 100);
-        drawRoom("Room 102", 250, 80, 150, 100);
-        drawRoom("Room 103", 420, 80, 150, 100);
+        currentFloor = floor;
+
+        // Clear previous floor overlay
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // Redraw building base
+        if (currentBuilding != null) {
+            drawBuilding(currentBuilding);
+        }
+
+        // Draw floor overlay (rooms/destinations)
+        for (var dest : floor.getDestinations()) {
+            drawRoom(dest.getName(), dest.getX(), dest.getY(), 150, 100);
+        }
+
+        // Draw user avatar on top
+        drawUser();
     }
 
     private void drawRoom(String name, double x, double y, double width, double height) {
-        gc.setFill(Color.rgb(255, 255, 255, 0.6)); // White with transparency
-        gc.setStroke(Color.GRAY);
-        gc.setLineWidth(2);
+        if ("Stairs".equals(name)) {
+            // Draw stairs as a special element
+            gc.setFill(Color.rgb(169, 169, 169, 0.8)); // Dark gray for stairs
+            gc.setStroke(Color.BLACK);
+            gc.setLineWidth(2);
 
-        gc.fillRect(x, y, width, height);
-        gc.strokeRect(x, y, width, height);
+            // Draw stair steps
+            for (int i = 0; i < 5; i++) {
+                gc.strokeLine(x + i * 10, y + height - i * 10, x + width - (4 - i) * 10, y + height - i * 10);
+            }
+            gc.fillRect(x, y, width, height);
+            gc.strokeRect(x, y, width, height);
+        } else {
+            gc.setFill(Color.rgb(255, 255, 255, 0.6)); // White with transparency
+            gc.setStroke(Color.GRAY);
+            gc.setLineWidth(2);
+
+            gc.fillRect(x, y, width, height);
+            gc.strokeRect(x, y, width, height);
+        }
 
         // Draw room label
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
         gc.setFill(Color.BLACK);
         gc.fillText(name, x + 10, y + 25);
+    }
+
+    private void drawUser() {
+        double radius = 10;
+        gc.setFill(Color.RED);
+        gc.fillOval(userX - radius, userY - radius, radius * 2, radius * 2);
+        gc.setStroke(Color.BLACK);
+        gc.strokeOval(userX - radius, userY - radius, radius * 2, radius * 2);
+    }
+
+    public void startUserMovementAnimation() {
+        if (userMovementTimeline != null) {
+            userMovementTimeline.stop();
+        }
+
+        userMovementTimeline = new Timeline(new KeyFrame(Duration.millis(100), e -> {
+            // Simulate user movement: move right and down
+            userX += 2;
+            userY += 1;
+
+            // Keep user within canvas bounds
+            userX = Math.min(userX, canvas.getWidth() - 10);
+            userY = Math.min(userY, canvas.getHeight() - 10);
+
+            // Redraw floor and user
+            Platform.runLater(() -> {
+                if (currentFloor != null) {
+                    renderFloor(currentFloor);
+                } else if (currentBuilding != null) {
+                    renderCampus(currentBuilding);
+                }
+            });
+
+            // Auto-scroll to follow user
+            double hValue = (userX * scaleValue - this.getViewportBounds().getWidth() / 2) / (canvas.getWidth() * scaleValue - this.getViewportBounds().getWidth());
+            double vValue = (userY * scaleValue - this.getViewportBounds().getHeight() / 2) / (canvas.getHeight() * scaleValue - this.getViewportBounds().getHeight());
+            this.setHvalue(clamp(hValue, 0, 1));
+            this.setVvalue(clamp(vValue, 0, 1));
+        }));
+        userMovementTimeline.setCycleCount(Timeline.INDEFINITE);
+        userMovementTimeline.play();
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
