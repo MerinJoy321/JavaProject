@@ -1,103 +1,70 @@
 package com.smartcampus.app;
 
+import com.smartcampus.data.model.User;
+import com.smartcampus.infrastructure.persistence.config.DatabaseInitializer;
 import com.smartcampus.ui.view.LoginView;
-import com.smartcampus.ui.view.SignupView;
+import com.smartcampus.ui.view.SignUpView;
 import com.smartcampus.ui.view.MainDashboard;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import java.util.HashMap;
-import java.util.Map;
 
 public class SmartCampusApp extends Application {
 
-    private static final Map<String, String> users = new HashMap<>(); // username -> password:role
-
     private Stage primaryStage;
-    private String currentRole;
+    private User currentUser;
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Smart Campus Navigation & Notification System");
 
+        // Initialize database
+        DatabaseInitializer.initializeDatabase();
+
         showLoginView();
         primaryStage.show();
     }
 
     private void showLoginView() {
-        LoginView loginView = new LoginView();
-        Scene loginScene = new Scene(loginView, 400, 500);
-        loginScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
-
-        loginView.getLoginButton().setOnAction(e -> {
-            String username = loginView.getUsernameField().getText();
-            String password = loginView.getPasswordField().getText();
-            String role = loginView.getRoleComboBox().getValue();
-
-            if (authenticate(username, password, role)) {
-                currentRole = role;
+        LoginView loginView = new LoginView(new LoginView.LoginCallback() {
+            public void onLoginSuccess(User user) {
+                currentUser = user;
                 showMainDashboard();
-            } else {
-                loginView.getStatusLabel().setText("Invalid credentials. Try again.");
+            }
+
+            public void onSignUpClicked() {
+                showSignUpView();
             }
         });
 
-        loginView.getSignupButton().setOnAction(e -> showSignupView());
-
+        Scene loginScene = new Scene(loginView, 400, 500);
+        loginScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         primaryStage.setScene(loginScene);
     }
 
-    private void showSignupView() {
-        SignupView signupView = new SignupView();
-        Scene signupScene = new Scene(signupView, 400, 550);
-        signupScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+    private void showSignUpView() {
+        SignUpView signUpView = new SignUpView(new SignUpView.SignUpCallback() {
+            public void onSignUpSuccess(User user) {
+                currentUser = user;
+                showMainDashboard();
+            }
 
-        signupView.getBackToLoginButton().setOnAction(e -> showLoginView());
-
-        signupView.getSignupButton().setOnAction(e -> {
-            String username = signupView.getUsernameField().getText();
-            String password = signupView.getPasswordField().getText();
-            String role = signupView.getRoleComboBox().getValue();
-
-            // Store the user
-            users.put(username, password + ":" + role);
-            currentRole = role;
-            showMainDashboard();
+            public void onLoginClicked() {
+                showLoginView();
+            }
         });
 
-        primaryStage.setScene(signupScene);
+        Scene signUpScene = new Scene(signUpView, 400, 550);
+        signUpScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        primaryStage.setScene(signUpScene);
     }
 
     private void showMainDashboard() {
-        MainDashboard mainDashboard = new MainDashboard();
+        MainDashboard mainDashboard = new MainDashboard(currentUser);
         Scene dashboardScene = new Scene(mainDashboard, 1024, 768);
-
-        // Add modern stylesheet
         dashboardScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
-
         primaryStage.setScene(dashboardScene);
-    }
-
-    private boolean authenticate(String username, String password, String role) {
-        // Check signed up users first
-        String stored = users.get(username);
-        if (stored != null) {
-            String[] parts = stored.split(":");
-            return parts.length == 2 && parts[0].equals(password) && parts[1].equals(role);
-        }
-        // Fallback to hardcoded authentication for demo purposes
-        // In a real app, this would check against a database
-        if ("admin".equals(username) && "admin".equals(password) && "Admin".equals(role)) {
-            return true;
-        }
-        if ("faculty".equals(username) && "faculty".equals(password) && "Faculty".equals(role)) {
-            return true;
-        }
-        if ("student".equals(username) && "student".equals(password) && "Student".equals(role)) {
-            return true;
-        }
-        return false;
     }
 
     public static void main(String[] args) {
