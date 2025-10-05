@@ -3,6 +3,8 @@ package com.smartcampus.ui.view;
 
 import com.smartcampus.data.model.Building;
 import com.smartcampus.data.model.Floor;
+import com.smartcampus.data.model.Destination;
+import com.smartcampus.core.Pathfinding;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ScrollPane;
@@ -12,10 +14,15 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.transform.Scale;
+import javafx.scene.transform.Rotate;
+import javafx.scene.image.Image;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 import javafx.application.Platform;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class CampusMap extends ScrollPane {
 
@@ -23,12 +30,16 @@ public class CampusMap extends ScrollPane {
     private Canvas canvas;
     private GraphicsContext gc;
     private Scale scale;
+    private Rotate rotate;
     private double scaleValue = 1.0;
+    private double heading = 0.0; // User heading in degrees
     private double lastMouseX, lastMouseY;
     private Building currentBuilding;
     private Floor currentFloor;
     private double userX = 400, userY = 300; // Initial user position
     private Timeline userMovementTimeline;
+    private List<double[]> navigationPath; // Current navigation path
+    private Map<String, Image> floorImages; // Cache for floor images
 
     public CampusMap() {
         this.setPrefSize(800, 600);
@@ -39,7 +50,10 @@ public class CampusMap extends ScrollPane {
         gc = canvas.getGraphicsContext2D();
 
         scale = new Scale(scaleValue, scaleValue);
-        canvas.getTransforms().add(scale);
+        rotate = new Rotate(heading, canvas.getWidth() / 2, canvas.getHeight() / 2);
+        canvas.getTransforms().addAll(scale, rotate);
+
+        floorImages = new HashMap<>();
 
         group.getChildren().add(canvas);
         this.setContent(group);
@@ -163,15 +177,28 @@ public class CampusMap extends ScrollPane {
         // Clear previous floor overlay
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-        // Redraw building base
-        if (currentBuilding != null) {
-            drawBuilding(currentBuilding);
+        // Draw floor image if available
+        if (floor.getImagePath() != null && !floor.getImagePath().isEmpty()) {
+            Image img = floorImages.computeIfAbsent(floor.getImagePath(), path -> new Image("file:" + path));
+            if (img != null && !img.isError()) {
+                gc.setGlobalAlpha(0.8); // Semi-transparent overlay
+                gc.drawImage(img, 0, 0, canvas.getWidth(), canvas.getHeight());
+                gc.setGlobalAlpha(1.0);
+            }
+        } else {
+            // Fallback to drawing building base
+            if (currentBuilding != null) {
+                drawBuilding(currentBuilding);
+            }
         }
 
-        // Draw floor overlay (rooms/destinations)
+        // Draw floor overlay (rooms/destinations) on top of image
         for (var dest : floor.getDestinations()) {
             drawRoom(dest.getName(), dest.getX(), dest.getY(), 150, 100);
         }
+
+        // Draw navigation path if exists
+        drawNavigationPath();
 
         // Draw user avatar on top
         drawUser();
@@ -213,6 +240,18 @@ public class CampusMap extends ScrollPane {
         gc.strokeOval(userX - radius, userY - radius, radius * 2, radius * 2);
     }
 
+    private void drawNavigationPath() {
+        if (navigationPath == null || navigationPath.size() < 2) return;
+
+        gc.setStroke(Color.BLUE);
+        gc.setLineWidth(3);
+        for (int i = 0; i < navigationPath.size() - 1; i++) {
+            double[] p1 = navigationPath.get(i);
+            double[] p2 = navigationPath.get(i + 1);
+            gc.strokeLine(p1[0], p1[1], p2[0], p2[1]);
+        }
+    }
+
     public void startUserMovementAnimation() {
         if (userMovementTimeline != null) {
             userMovementTimeline.stop();
@@ -248,5 +287,48 @@ public class CampusMap extends ScrollPane {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    public void startNavigation(Destination destination) {
+        if (currentFloor == null || destination == null) return;
+
+        // Create a mock start destination at user position
+        Destination start = new Destination("Start", "Start", userX, userY);
+
+        navigationPath = Pathfinding.findPath(start, destination);
+
+        // Update heading towards first path point
+        if (navigationPath.size() > 1) {
+            double[] next = navigationPath.get(1);
+            heading = Math.toDegrees(Math.atan2(next[1] - userY, next[0] - userX));
+            rotate.setAngle(heading);
+        }
+    }
+
+    public void updateHeading(double deltaHeading) {
+        heading += deltaHeading;
+        rotate.setAngle(heading);
+        renderFloor(currentFloor); // Redraw to apply rotation
+    }
+
+    public void stopNavigation() {
+        navigationPath = null;
+        renderFloor(currentFloor);
+    }
+
+    public void renderImage(String imagePath) {
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        if (imagePath != null && !imagePath.isEmpty()) {
+            Image img = floorImages.computeIfAbsent(imagePath, path -> new Image("file:" + path));
+            if (img != null && !img.isError()) {
+                gc.setGlobalAlpha(0.9); // Semi-transparent overlay
+                gc.drawImage(img, 0, 0, canvas.getWidth(), canvas.getHeight());
+                gc.setGlobalAlpha(1.0);
+            }
+        }
+
+        // Draw user avatar on top
+        drawUser();
     }
 }

@@ -1,12 +1,9 @@
 package com.smartcampus.app;
 
-<<<<<<< HEAD
 import com.smartcampus.data.model.User;
 import com.smartcampus.infrastructure.persistence.config.DatabaseInitializer;
 import com.smartcampus.ui.view.LoginView;
 import com.smartcampus.ui.view.SignUpView;
-=======
->>>>>>> 8872f22dce8baf1b23b7bab30c4e3b26fcbbb6e5
 import com.smartcampus.ui.view.MainDashboard;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -14,17 +11,14 @@ import javafx.stage.Stage;
 
 public class SmartCampusApp extends Application {
 
-<<<<<<< HEAD
     private Stage primaryStage;
     private User currentUser;
 
-=======
->>>>>>> 8872f22dce8baf1b23b7bab30c4e3b26fcbbb6e5
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
         primaryStage.setTitle("Smart Campus Navigation & Notification System");
 
-<<<<<<< HEAD
         // Initialize database
         DatabaseInitializer.initializeDatabase();
 
@@ -67,20 +61,13 @@ public class SmartCampusApp extends Application {
     }
 
     private void showMainDashboard() {
-        MainDashboard mainDashboard = new MainDashboard(currentUser);
+        MainDashboard mainDashboard = new MainDashboard(currentUser, () -> {
+            currentUser = null;
+            showLoginView();
+        });
         Scene dashboardScene = new Scene(mainDashboard, 1024, 768);
         dashboardScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         primaryStage.setScene(dashboardScene);
-=======
-        MainDashboard mainDashboard = new MainDashboard();
-        Scene scene = new Scene(mainDashboard, 1024, 768);
-        
-        // Optional: Add a stylesheet for a more polished look
-        // scene.getStylesheets().add(getClass().getResource("/com/smartcampus/ui/resource/style.css").toExternalForm());
-
-        primaryStage.setScene(scene);
-        primaryStage.show();
->>>>>>> 8872f22dce8baf1b23b7bab30c4e3b26fcbbb6e5
     }
 
     public static void main(String[] args) {

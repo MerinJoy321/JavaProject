@@ -12,7 +12,7 @@ public class FloorDAO {
 
     public List<Floor> getFloorsByBuildingId(int buildingId) {
         List<Floor> floors = new ArrayList<>();
-        String sql = "SELECT id, floor_number FROM floors WHERE building_id = ?";
+        String sql = "SELECT f.id, f.floor_number, b.name as building_name FROM floors f JOIN buildings b ON f.building_id = b.id WHERE f.building_id = ?";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -25,14 +25,34 @@ public class FloorDAO {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 int floorNumber = rs.getInt("floor_number");
+                String buildingName = rs.getString("building_name");
                 List<Destination> destinations = destinationDAO.getDestinationsByFloorId(id);
                 Floor floor = new Floor(id, floorNumber, destinations);
+
+                // Set image path based on building name and floor number
+                String imagePath = getImagePath(buildingName, floorNumber);
+                floor.setImagePath(imagePath);
+
                 floors.add(floor);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return floors;
+    }
+
+    private String getImagePath(String buildingName, int floorNumber) {
+        String block = "";
+        if (buildingName.contains("A")) {
+            block = "A";
+        } else if (buildingName.contains("B")) {
+            block = "B";
+        } else {
+            return null; // No image for other blocks
+        }
+
+        String floorName = (floorNumber == 0) ? "ground floor" : "first floor";
+        return "block-" + block + " " + floorName + ".png";
     }
 
     public void saveFloor(Floor floor, int buildingId) {

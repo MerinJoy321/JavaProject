@@ -27,4 +27,8 @@ public class MapView extends StackPane {
             campusMap.renderFloor(floor);
         }
     }
+
+    public void renderImage(String imagePath) {
+        campusMap.renderImage(imagePath);
+    }
 }
