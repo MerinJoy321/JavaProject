@@ -3,7 +3,7 @@ package com.smartcampus.app;
 import com.smartcampus.data.model.User;
 import com.smartcampus.infrastructure.persistence.config.DatabaseInitializer;
 import com.smartcampus.ui.view.LoginView;
-import com.smartcampus.ui.view.SignUpView;
+import com.smartcampus.ui.view.SignupView;
 import com.smartcampus.ui.view.MainDashboard;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -44,7 +44,7 @@ public class SmartCampusApp extends Application {
     }
 
     private void showSignUpView() {
-        SignUpView signUpView = new SignUpView(new SignUpView.SignUpCallback() {
+        SignupView signUpView = new SignupView(new SignupView.SignUpCallback() {
             public void onSignUpSuccess(User user) {
                 currentUser = user;
                 showMainDashboard();

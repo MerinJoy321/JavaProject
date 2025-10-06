@@ -8,7 +8,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-public class SignUpView extends VBox {
+public class SignupView extends VBox {
 
     private TextField usernameField;
     private PasswordField passwordField;
@@ -24,7 +24,7 @@ public class SignUpView extends VBox {
 
     private SignUpCallback callback;
 
-    public SignUpView(SignUpCallback callback) {
+    public SignupView(SignUpCallback callback) {
         this.callback = callback;
         initializeUI();
     }
